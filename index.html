@@ -1,38 +1,93 @@
 <!doctype html>
 <html>
   <head>
-    <title>Socket.IO chat</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
-      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-    </style>
+    <title>SENG 513 ChatApp</title>
   </head>
- <script src="/socket.io/socket.io.js"></script>
-<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
-<script>
-  $(function () {
+  <link href="/style.css" rel="stylesheet" type="text/css">
+
+  <!---- load socket.io-client and connect ---->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+  <script>
     var socket = io();
-    $('form').submit(function(e){
-      e.preventDefault(); // prevents page reloading
-      socket.emit('chat message', $('#m').val());
-      $('#m').val('');
-      return false;
+    var username = $("#username");
+
+    $(function () {
+
+
+      $('form').submit(function(e){
+        e.preventDefault(); // prevents page reloading
+
+        let input = document.getElementById('m').value;
+        if(input.indexOf('/nick ') === 0){  // if input has /nick then user wants to change name
+          processUsername(input); // change username
+        }
+
+        socket.emit('chat message', $('#m').val()); // send to chat message event
+        $('#m').val('');
+        return false;
+      });
+
+      socket.on('new user', function(user) { // receive new user event
+        newUser(user);  // function to display username
+      });
+
+      socket.on('chat message', function(msg){
+        processMessage(msg);  // function to format message
+      });
+
+      socket.on('updated', function(nickname){  // receive updated username event
+        document.getElementById('username').innerHTML = "You are " + nickname; //update header to new name
+      });
     });
-    socket.on('chat message', function(msg){
-      $('#messages').append($('<li>').text(msg));
-    });
-  });
-</script>
+
+    // displays username in header
+    function newUser(user) {
+      username = user.username;
+      document.getElementById('username').innerHTML = "You are " + user.username; //display username in header
+    }
+
+    // parses /nick command to get new desired username and sets it
+    function processUsername(inputs){
+      let args = inputs.split(' ');
+      username = args[1]; // get descired new username from input
+      socket.emit('change username', args[1]);  //send event change username
+      document.getElementById('m').value = '[ This user changed their name to ' + args[1] + ' ]';
+    }
+
+
+    // determines if message should be bolded or not, then displays the message
+    function processMessage(msg){
+      var message = String(msg);
+      // if message contains the name of the same person sending it, bold it
+      if (message.indexOf(username) !== -1){
+        message = "<b>" + message + "</b>"; //add bold tags
+        $('#messages').append( $('<li>').html(message)); //display message
+        let scrollie = document.getElementById('wrapper');
+        scrollie.scrollTop = scrollie.scrollHeight;
+      }
+      // else leave it unbolded
+      else{
+        $('#messages').append( $('<li>').html(message)); //display message
+        let scrollie = document.getElementById('wrapper');
+        scrollie.scrollTop = scrollie.scrollHeight;
+      }
+    }
+
+  </script>
+
   <body>
-    <ul id="messages"></ul>
-    <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
-    </form>
+    <div id = "header">
+      <h3 id= "username"></h3>
+    </div>
+    <div class = "container">
+
+      <div id = "wrapper">
+        <ul id="messages"></ul>
+      </div>
+      <form action="">
+        <input id="m" autocomplete="off" /><button>Send</button>
+      </form>
+    </div>
   </body>
 </html>
